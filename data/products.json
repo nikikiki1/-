@@ -1,0 +1,11 @@
+[
+  {
+    "product_id": "28ad1af6-0add-47fb-af4b-e806e31b2127",
+    "name": "测试商品",
+    "description": "用于测试库存计算",
+    "price": 100.0,
+    "stock_quantity": 4,
+    "merchant_id": "test_merchant",
+    "is_active": true
+  }
+]

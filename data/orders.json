@@ -1,0 +1,56 @@
+[
+  {
+    "order_id": "e5104aeb-7ec9-4009-966e-9dadfbb22900",
+    "order_date": "2026-01-02 08:36:25",
+    "customer_id": "customer1",
+    "product_id": "28ad1af6-0add-47fb-af4b-e806e31b2127",
+    "quantity": 1,
+    "status": "pending",
+    "total_amount": 100.0
+  },
+  {
+    "order_id": "c9d8edee-eb3b-4746-95d7-34ccdb8f9d1a",
+    "order_date": "2026-01-02 08:36:25",
+    "customer_id": "customer_2",
+    "product_id": "28ad1af6-0add-47fb-af4b-e806e31b2127",
+    "quantity": 1,
+    "status": "pending",
+    "total_amount": 100.0
+  },
+  {
+    "order_id": "88185c3f-8e54-43d5-bd5f-8a93aa304f67",
+    "order_date": "2026-01-02 08:36:25",
+    "customer_id": "customer_3",
+    "product_id": "28ad1af6-0add-47fb-af4b-e806e31b2127",
+    "quantity": 1,
+    "status": "pending",
+    "total_amount": 100.0
+  },
+  {
+    "order_id": "ed9e86d9-85f1-481e-828e-11d46be0c35d",
+    "order_date": "2026-01-02 08:36:25",
+    "customer_id": "customer_4",
+    "product_id": "28ad1af6-0add-47fb-af4b-e806e31b2127",
+    "quantity": 1,
+    "status": "pending",
+    "total_amount": 100.0
+  },
+  {
+    "order_id": "8a71c433-b236-41cc-9eb6-d7e7b0f6824c",
+    "order_date": "2026-01-02 08:36:25",
+    "customer_id": "customer_5",
+    "product_id": "28ad1af6-0add-47fb-af4b-e806e31b2127",
+    "quantity": 1,
+    "status": "pending",
+    "total_amount": 100.0
+  },
+  {
+    "order_id": "dd4590ec-838b-42f3-a8a0-527edafce599",
+    "order_date": "2026-01-02 08:36:25",
+    "customer_id": "customer_6",
+    "product_id": "28ad1af6-0add-47fb-af4b-e806e31b2127",
+    "quantity": 1,
+    "status": "pending",
+    "total_amount": 100.0
+  }
+]
