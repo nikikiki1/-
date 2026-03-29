@@ -1,0 +1,78 @@
+标准ospf
+周期性更新、状态变化自动更新
+
+mospf
+向所有邻居广播链路信息
+仅通过周期性Hello和事件触发的LSU维护LSDB
+
+Hello报文用于检测自己周围的链路信息，维护邻居表。
+Router ID可以从mOSPF Header中获取，IP地址可以直接从IP Header中获取，
+子网网段则通过mask与IP地址计算得到。
+
+
+LSU报文用于与网络中的其他所有节点同步各自检测到的链路信息，维护LSDB。
+LSDB可以看做每个节点上存储的所有链路的状态集合。
+
+
+检测超时：
+
+1.若一定时间内未收到某个邻居的Hello报文：
+删除对应的邻居节点信息
+将更新后的LSA发送给所有邻居节点
+重新计算路由表
+
+2.若一定时间内未收到某个邻居的LSU报文：
+删除超时的表项
+重新计算路由表
+
+
+
+1.为什么exp7没有ip_forward?
+从exp5复制过来了
+
+2.arpcache.h没有函数void *arpcache_sweep(void *arg);
+
+从exp5复制过来了
+
+
+3.16:02检查void send_mospf_hello(iface_info_t *iface)
+double free，删除free
+
+4.16:14检查void send_mospf_lsu(void)
+double free，删除free
+
+5.16:37在void mospf_init()里初始化全局变量
+
+6.16:54在void forward_mospf_lsu
+double_free 删除free
+
+
+7.17:02出现经典段错误，让我验证一下哪里出问题了
+一怀疑实验五可能有问题，待验证，二检查新写的内容
+
+
+start handle_mospf_lsu
+Segmentation fault (core dumped)
+两个这样报错
+start handle_mospf_lsu
+DEBUG: ip_send_packet
+DEBUG: iface_send_packet_by_arp
+DEBUG: arpcache_lookup
+DEBUG: Found MAC address in ARP cache, sending packet.
+Segmentation fault (core dumped)
+一个这样报错
+
+handle_mospf_lsu可能有问题
+
+
+void mospf_update_rtable(void)有问题
+
+
+
+8.22:01    rid_int_map_add(rid_int_map, instance->router_id, &num);
+num改成&num
+
+9.开始删减
+void mospf_dijkstra(struct list_head *routing_table)
+删出printf内容
+

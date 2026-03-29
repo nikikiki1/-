@@ -1,0 +1,183 @@
+实验手册4.19 第一条，暂时没进行处理
+
+注意5.7的提示
+
+#########################
+在查询路由表时，数据包只会包含目的地址，采取最长前缀匹配策略，即：
+(dest_ip_of_packet & rtable_mask) == (rtable_dest_ip & rtable_mask)且rtable_mask长度最大。
+
+
+########################
+
+
+
+路由表转发流程如下：
+
+给定数据包，提取该数据包的IP头部。
+
+对IP头部的TTL值进行减一操作，如果该值 <= 0，则将该数据包丢弃，并回复ICMP Error Packet（ICMP_TIME_EXCEEDED）。
+
+IP头部数据已经发生变化，需要重新设置checksum。
+
+遍历路由表，使用最长前缀匹配查找相应条目，可能会出现三种情况（下文提到的MAC地址在一个子网内转发数据包时起作用）：
+
+找不到任何路由表项：发送ICMP Error Packet（ICMP_DEST_UNREACH）。
+
+路由器端口IP与目的IP地址在同一网段：转发到相应端口，
+寻找目的IP对应的MAC地址。
+
+路由器端口IP与目的IP地址不在同一网段：转发到相应端口，
+寻找下一跳路由器的MAC地址。
+
+这里判断路由器端口IP与目的IP地址是否在同一网段
+可用路由表表项实现rt_entry_t结构体中的gw属性判断，
+该结构体定义在rtable.h文件中。
+##################################
+
+
+ARP缓存操作
+1查找IP->MAC映射
+如果在ARP缓存表中找到有关映射，就填充数据包的目的MAC地址，并转发该数据包。
+否则，将该数据包缓存在ARP缓存表的等待队列中（用链表实现），
+并发送ARP Request。
+
+2收到新的IP->MAC映射
+将该映射写入ARP缓存表中 ，如果ARP缓存表已满，则随机替换掉其中一个。
+将ARP缓存表等待队列中等待该映射的数据包依次填入目的MAC地址并转发出去，
+再删掉相应缓存。
+
+3同时每秒对ARP缓存表进行清理
+如果一个缓存条目在缓存中已存在超过了15秒，则将该条目清除。
+如果一个IP对应的ARP Request已经发送超过1秒，则重新发送ARP Request。
+
+如果ARP Request发送超过5次仍未收到ARP Reply，
+则对等待该映射的数据包的源IP地址依次发送
+ICMP Error Packet（Destination Host Unreachable），
+并删除等待的数据包。
+
+###############################
+
+Dest Ether Addr：当为ARP Request，即MAC地址未确定时，
+写入FF: FF: FF: FF: FF: FF，广播包。
+
+ARP Operation Type：0x01为ARP Request，0x02为ARP Reply。
+
+Target HW Addr：当为ARP Request时，Target HW Addr置空。
+
+
+#################################
+
+部分情况下ICMP数据包的响应格式
+1.路由表查找失败
+
+Type：3
+Code：0
+Checksum：使用icmp.h文件中的icmp_checksum进行更新，注意更新Checksum的时机
+Rest of ICMP Header： 还剩4字节，均设置为0
+
+主体部分：拷贝发生错误的数据包的IP头部（>=20字节）+ 随后的8字节
+
+2.ARP Request失败
+
+Type：3
+Code：1
+Checksum：同上
+Rest of ICMP Header：同上
+
+3.TTL值减为0
+
+Type：11
+Code：0
+Checksum：同上
+Rest of ICMP Header：同上
+
+4.收到Ping本端口的数据包（ ICMP EchoRequest Packet，头部Type为8 ）
+
+Type：0
+Code：0
+Checksum：同上
+Rest of ICMP Header以及主体内容：拷贝Ping包中的相应字段
+
+
+
+
+#############################
+
+工作流程示例
+1.发送数据包时发现MAC未知：
+
+  检查ARP缓存表（entries），若未找到对应条目：
+
+    查找req_list中是否已有该IP的arp_req节点：
+
+      存在：直接将数据包挂到该节点的cached_packets链表。
+
+      不存在：创建新的arp_req节点，添加到req_list，并发送ARP请求。
+
+2.收到ARP回复时：
+
+  更新ARP缓存表（entries）。
+
+  找到req_list中对应的arp_req节点，遍历其cached_packets链表，逐个发送缓存的数据包。
+
+  删除该arp_req节点及其所有cached_pkt节点。
+
+3.超时处理：
+
+  后台线程定期检查req_list中每个arp_req的sent时间和retries。
+
+  若超时且未达最大重试次数，重新发送ARP请求。 
+
+  若超过最大重试次数，删除该节点及其所有缓存包。
+
+
+想象一个快递站：
+
+第一层链表（req_list）：记录所有未确认地址的包裹目的地（如“北京”、“上海”）。
+
+第二层链表（cached_packets）：每个目的地对应一个货架，货架上堆放着所有发往该地的包裹。
+
+快递员（线程）：定期检查未确认的目的地，若超时未确认则重新询问地址（重试ARP请求），确认后一次性发送所有对应包裹。
+
+
+
+修改记录：
+1.23:02
+多次free同一地址，怀疑是icmp_send_packet出的问题
+
+经检查不是icmp_send_packet的free出问题，再验证一下其他的free
+已解决，问题在调用iface-send-packet之后二次释放
+
+2.23:17
+ICMP Destination Host Unreachable必须所有发的icmp包都返回才是对的，
+如果你的icmp_seq不是从1开始返回这个，无法通过测试。
+这句话不确定什么意思，但我的包确实不是从1开始返回的
+
+3.21:46
+发现daddr出错，可能是ntohl使用错误
+好像不是，对icmp_send_packet进行修改
+
+发现是调用ip_send_packet错误，改回原来的版本正确
+
+
+4.22:51
+发现h1 ping r1 会错误，在找原因
+能成功接收到是给路由器的，但是为什么发了没成功
+
+对比ping h2和h3的结果，问题应该还是出在icmp_send_packet或者ip_send_packet
+
+这里如果icmp_send_packet调用ip_send_packt,又会出现3的问题
+
+根源问题可能在于当时把ICMP_HDR_SIZE和含BASE的混淆了
+
+
+5.12:12
+发现根源在ether_type异常，在排查哪里出错了
+已解决该问题，在初始化的地方需要
+
+6.继续排查4
+是icmp_send_packet的问题
+
+
+7.traceout
+按照情况修改daddr
